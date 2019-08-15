@@ -878,8 +878,6 @@ class MicraWorld {
         this._SocketSend("world.setBlocks(" + [-100, 0, -100, 100, 63, 100, 0, 0].join() + ")");
         this._SocketSend("world.setBlocks(" + [-100, -63, -100, 100, -2, 100, 1, 0].join() + ")");
         this._SocketSend("world.setBlocks(" + [-100, -1, -100, 100, -1, 100, 2, 0].join() + ")");
-        this._SocketSend("player.setPos(0,0,0)");
-        this._SocketSend("chat.post(reset done!)");
     }
 }
 
