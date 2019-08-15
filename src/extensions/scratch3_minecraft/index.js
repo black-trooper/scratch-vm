@@ -479,6 +479,12 @@ const FormPreSetBlockIdData = {
     'en': 'set a[BlockName] at x:[X] y:[Y] z:[Z]'
 };
 
+const FormPreDrawLine = {
+    'ja': '[BlockName]の直線 　x:[X] y:[Y] z:[Z] 〜 　x:[X1] y:[Y1] z:[Z1]',
+    'ja-Hira': '[BlockName]のちょくせん 　ざひょう 　x:[X] y:[Y] z:[Z] 〜 　x:[X1] y:[Y1] z:[Z1]',
+    'en': 'draw a line of[BlockName] from  x:[X] y:[Y] z:[Z] to  x:[X1] y:[Y1] z:[Z1]|  helper'
+};
+
 const FormPreSetBlocks = {
     'ja': '[BlockName]で埋め尽くす 　x:[X] y:[Y] z:[Z] 〜 　x:[X1] y:[Y1] z:[Z1]',
     'ja-Hira': '[BlockName]でうめつくす 　x:[X] y:[Y] z:[Z] 〜 　x:[X1] y:[Y1] z:[Z1]',
@@ -726,27 +732,149 @@ class MicraWorld {
         this._SocketSend("world.setBlock(" + prm + ")");
     }
 
-	/**
-	* set Blocks as a cuboid, which diagonal line is defined from (x,y,z) to (x1,y1,z1) in the minecraft world.
-	*/
+    _MAX(a, b) {
+        return a > b ? a : b
+    }
+
+    _ZSGN(a) {
+        if (a < 0) return -1
+        if (a > 0) return 1
+        return 0
+    }
+
+    drawLine(id, data, x, y, z, x1, y1, z1) {
+        const points = this._getPoints(x, y, z, x1, y1, z1)
+        for (i in points) {
+            const point = points[i]
+            console.log(point)
+            // to socket direct
+            var prm = [point.x, point.y, point.z, id, data].join();
+            this._SocketSend("world.setBlock(" + prm + ")");
+        }
+    }
+
+    _getPoints(x1, y1, z1, x2, y2, z2) {
+        x1 = parseInt(x1)
+        y1 = parseInt(y1)
+        z1 = parseInt(z1)
+        x2 = parseInt(x2)
+        y2 = parseInt(y2)
+        z2 = parseInt(z2)
+
+        // list for vertices
+        var vertices = []
+
+        // if the 2 points are the same, return single vertice
+        if (x1 == x2 && y1 == y2 && z1 == z2) {
+            vertices.push({ x: x1, y: y1, z: z1 })
+            return
+        }
+
+        // else get all points in edge
+        const dx = x2 - x1
+        const dy = y2 - y1
+        const dz = z2 - z1
+
+        const ax = Math.abs(dx) << 1
+        const ay = Math.abs(dy) << 1
+        const az = Math.abs(dz) << 1
+
+        const sx = this._ZSGN(dx)
+        const sy = this._ZSGN(dy)
+        const sz = this._ZSGN(dz)
+
+        let x = x1
+        let y = y1
+        let z = z1
+
+        // x dominant
+        if (ax >= this._MAX(ay, az)) {
+            const d = (ax >> 1)
+            let yd = ay - d
+            let zd = az - d
+            let loop = true
+            while (loop) {
+                vertices.push({ x, y, z })
+                if (x == x2)
+                    loop = false
+                if (yd >= 0)
+                    y += sy
+                yd -= ax
+                if (zd >= 0)
+                    z += sz
+                zd -= ax
+                x += sx
+                yd += ay
+                zd += az
+            }
+        }
+        // y dominant
+        else if (ay >= this._MAX(ax, az)) {
+            const d = (ay >> 1)
+            let xd = ax - d
+            let zd = az - d
+            let loop = true
+            while (loop) {
+                vertices.push({ x, y, z })
+                if (y == y2)
+                    loop = false
+                if (xd >= 0)
+                    x += sx
+                xd -= ay
+                if (zd >= 0)
+                    z += sz
+                zd -= ay
+                y += sy
+                xd += ax
+                zd += az
+            }
+        }
+        // z dominant
+        else if (az >= this._MAX(ax, ay)) {
+            const d = (az >> 1)
+            let xd = ax - d
+            let yd = ay - d
+            let loop = true
+            while (loop) {
+                vertices.push({ x, y, z })
+                if (z == z2)
+                    loop = false
+                if (xd >= 0)
+                    x += sx
+                xd -= az
+                if (yd >= 0)
+                    y += sy
+                yd -= az
+                z += sz
+                xd += ax
+                yd += ay
+            }
+        }
+        console.log(vertices)
+        return vertices
+    }
+
+    /**
+    * set Blocks as a cuboid, which diagonal line is defined from (x,y,z) to (x1,y1,z1) in the minecraft world.
+    */
     setBlocks(id, data, x, y, z, x1, y1, z1) {
         // to socket direct
         var prm = [x, y, z, x1, y1, z1, id, data].join();
         this._SocketSend("world.setBlocks(" + prm + ")");
     }
 
-	/**
-	* Teleport the player to (x,y,z) in the minecraft world.
-	*/
+    /**
+    * Teleport the player to (x,y,z) in the minecraft world.
+    */
     Teleport(x, y, z) {
         // to socket direct
         var prm = [x, y, z].join();
         this._SocketSend("player.setPos(" + prm + ")");
     }
 
-	/**
-	* Reset around (0,0,0) and make the player teleport there in the minecraft world.
-	*/
+    /**
+    * Reset around (0,0,0) and make the player teleport there in the minecraft world.
+    */
     Reset() {
         // to socket direct
         this._SocketSend("world.setBlocks(" + [-100, 0, -100, 100, 63, 100, 0, 0].join() + ")");
@@ -893,6 +1021,48 @@ class Scratch3MinecraftBlocks {
                             type: ArgumentType.NUMBER,
                             defaultValue: 0,
                             description: 'Coordinate Z'
+                        }
+                    }
+                },
+                {
+                    opcode: 'drawLine',
+                    text: FormPreDrawLine[this._locale],
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        BlockName: {
+                            type: ArgumentType.STRING,
+                            defaultValue: MENU_BLOCKS[this._locale][1],
+                            description: 'Block Name'
+                        },
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0,
+                            description: 'Coordinate X'
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0,
+                            description: 'Coordinate Y'
+                        },
+                        Z: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0,
+                            description: 'Coordinate Z'
+                        },
+                        X1: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0,
+                            description: 'Coordinate X1'
+                        },
+                        Y1: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0,
+                            description: 'Coordinate Y1'
+                        },
+                        Z1: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1,
+                            description: 'Coordinate Z1'
                         }
                     }
                 },
@@ -1104,6 +1274,11 @@ class Scratch3MinecraftBlocks {
     setBlockData(args) {
         let data = this._nameToId(args.BlockName);
         this._world.setBlockData(data[0], data[1], args.X, args.Y, args.Z);
+    }
+
+    drawLine(args) {
+        let data = this._nameToId(args.BlockName);
+        this._world.drawLine(data[0], data[1], args.X, args.Y, args.Z, args.X1, args.Y1, args.Z1);
     }
 
     setBlocks(args) {
