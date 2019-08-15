@@ -746,7 +746,6 @@ class MicraWorld {
         const points = this._getPoints(x, y, z, x1, y1, z1)
         for (i in points) {
             const point = points[i]
-            console.log(point)
             // to socket direct
             var prm = [point.x, point.y, point.z, id, data].join();
             this._SocketSend("world.setBlock(" + prm + ")");
@@ -850,7 +849,6 @@ class MicraWorld {
                 yd += ay
             }
         }
-        console.log(vertices)
         return vertices
     }
 
